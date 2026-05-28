@@ -48,16 +48,30 @@ Spine runtime code is included under its own license. See
 - macOS 13 or later
 - Xcode command line tools or Xcode with Swift 5.9+
 
+## Player Guide
+
+Download the app from GitHub Releases, unzip it, and move `MacArkPet.app` to
+`Applications`.
+
+If macOS says Apple cannot check the app for malicious software, see the
+English [User Guide](docs/USAGE.md). It also explains how to use `Sync Models`,
+the bottom progress indicator, and the model library location:
+
+```text
+~/Library/Application Support/MacArkPet/ArkModels
+```
+
 ## Run From Source
 
 ```bash
-git clone https://github.com/YOUR_NAME/MacArkPet.git
+git clone https://github.com/Wanduforl/MacArkPet.git
 cd MacArkPet
 ./script/build_and_run.sh
 ```
 
 The first launch may show an empty or partial model list until you click
-`Sync Models`.
+`Sync Models`. During sync, the launcher footer shows a circular progress
+indicator with the percentage, current stage, and save location.
 
 For local development with an existing Ark-Pets checkout, you may point the app
 at local assets:

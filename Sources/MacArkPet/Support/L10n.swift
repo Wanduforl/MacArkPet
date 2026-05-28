@@ -53,8 +53,10 @@ enum ModelStoreStatus {
     case noModels
     case loaded(count: Int)
     case looseLoaded(count: Int)
+    case preparingDownload
     case downloadingLibrary
     case unpackingLibrary
+    case installingLibrary
     case syncCompleted(count: Int)
     case syncFailed(String)
     case launchedFull(String)
@@ -179,6 +181,33 @@ enum L10n {
         pick(language, zh: "语言", en: "Language")
     }
 
+    static func progressPercent(_ progress: Double, language: AppLanguage) -> String {
+        let percent = Int((progress * 100).rounded())
+        return pick(language, zh: "\(percent)%", en: "\(percent)%")
+    }
+
+    static func modelLibraryLocation(_ path: String, language: AppLanguage) -> String {
+        pick(language, zh: "保存到：\(path)", en: "Saved to: \(path)")
+    }
+
+    static func downloadProgressDetail(received: Int64, expected: Int64, path: String, language: AppLanguage) -> String {
+        let receivedText = ByteCountFormatter.string(fromByteCount: received, countStyle: .file)
+        if expected > 0 {
+            let expectedText = ByteCountFormatter.string(fromByteCount: expected, countStyle: .file)
+            return pick(
+                language,
+                zh: "已下载 \(receivedText) / \(expectedText) · 保存到：\(path)",
+                en: "Downloaded \(receivedText) / \(expectedText) · Saved to: \(path)"
+            )
+        }
+
+        return pick(
+            language,
+            zh: "已下载 \(receivedText) · 保存到：\(path)",
+            en: "Downloaded \(receivedText) · Saved to: \(path)"
+        )
+    }
+
     static func modelFilterTitle(_ filter: ModelFilter, language: AppLanguage) -> String {
         switch filter {
         case .all:
@@ -217,10 +246,14 @@ enum L10n {
             return pick(language, zh: "已读取 \(count) 个模型", en: "Loaded \(count) models")
         case .looseLoaded(let count):
             return pick(language, zh: "已用本地目录扫描到 \(count) 个模型", en: "Scanned \(count) models from local folders")
+        case .preparingDownload:
+            return pick(language, zh: "正在准备下载模型库", en: "Preparing model library download")
         case .downloadingLibrary:
             return pick(language, zh: "正在下载模型库索引和资源包", en: "Downloading model index and assets")
         case .unpackingLibrary:
             return pick(language, zh: "正在解压模型库", en: "Unpacking model library")
+        case .installingLibrary:
+            return pick(language, zh: "正在安装模型库", en: "Installing model library")
         case .syncCompleted(let count):
             return pick(language, zh: "同步完成，已读取 \(count) 个模型", en: "Sync complete. Loaded \(count) models")
         case .syncFailed(let message):

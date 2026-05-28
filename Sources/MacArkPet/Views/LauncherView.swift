@@ -115,10 +115,19 @@ struct LauncherView: View {
             Divider()
 
             HStack {
-                Text(store.statusText(language: language))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                if store.isSyncing || store.syncProgress != nil {
+                    SyncProgressRing(
+                        progress: store.syncProgress ?? 0,
+                        statusText: store.statusText(language: language),
+                        detailText: store.syncDetailText(language: language),
+                        language: language
+                    )
+                } else {
+                    Text(store.statusText(language: language))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
 
                 Spacer()
 
@@ -133,6 +142,49 @@ struct LauncherView: View {
             }
             .padding(12)
         }
+    }
+}
+
+private struct SyncProgressRing: View {
+    let progress: Double
+    let statusText: String
+    let detailText: String
+    let language: AppLanguage
+
+    private var clampedProgress: Double {
+        min(max(progress, 0), 1)
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .stroke(.quaternary, lineWidth: 4)
+                Circle()
+                    .trim(from: 0, to: clampedProgress)
+                    .stroke(.blue, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeOut(duration: 0.18), value: clampedProgress)
+                Text(L10n.progressPercent(clampedProgress, language: language))
+                    .font(.system(size: 8, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+            }
+            .frame(width: 34, height: 34)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(statusText)
+                    .font(.caption.weight(.medium))
+                    .lineLimit(1)
+                Text(detailText)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .frame(maxWidth: 260, alignment: .leading)
+        }
+        .frame(minWidth: 180, maxWidth: .infinity, alignment: .leading)
+        .help("\(statusText)\n\(detailText)")
     }
 }
 

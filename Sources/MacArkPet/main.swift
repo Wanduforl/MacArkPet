@@ -1,7 +1,9 @@
 import AppKit
 
 private enum AppRuntime {
-    static let delegate = MacArkPetApp()
+    static let delegate = MainActor.assumeIsolated {
+        MacArkPetApp()
+    }
 }
 
 let app = NSApplication.shared

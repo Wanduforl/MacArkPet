@@ -30,6 +30,7 @@ enum ModelFilter: String, CaseIterable, Identifiable {
     }
 }
 
+@MainActor
 final class ArkModelStore: ObservableObject {
     @Published private(set) var models: [ArkModelItem] = []
     @Published var searchText = ""
@@ -38,6 +39,9 @@ final class ArkModelStore: ObservableObject {
     @Published var selectedModelID: ArkModelItem.ID?
     @Published var status: ModelStoreStatus = .readingLocalModels
     @Published var isSyncing = false
+    @Published var syncProgress: Double?
+    @Published var syncBytesReceived: Int64 = 0
+    @Published var syncBytesExpected: Int64 = 0
     @Published private var scaleOverrides: [String: Double] = ArkModelStore.loadScaleOverrides()
     @Published var petSpeed: Double = UserDefaults.standard.object(forKey: "petSpeed") as? Double ?? 42 {
         didSet { UserDefaults.standard.set(petSpeed, forKey: "petSpeed") }
@@ -50,6 +54,10 @@ final class ArkModelStore: ObservableObject {
     private var appSupportRoot: URL {
         let root = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         return root.appendingPathComponent("MacArkPet/ArkModels", isDirectory: true)
+    }
+
+    var modelLibraryPath: String {
+        appSupportRoot.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
     }
 
     private var assetRoots: [URL] {
@@ -90,6 +98,18 @@ final class ArkModelStore: ObservableObject {
 
     func statusText(language: AppLanguage = .current) -> String {
         L10n.status(status, language: language)
+    }
+
+    func syncDetailText(language: AppLanguage = .current) -> String {
+        guard isSyncing, syncBytesReceived > 0 else {
+            return L10n.modelLibraryLocation(modelLibraryPath, language: language)
+        }
+        return L10n.downloadProgressDetail(
+            received: syncBytesReceived,
+            expected: syncBytesExpected,
+            path: modelLibraryPath,
+            language: language
+        )
     }
 
     var availableTagFilters: [(id: String, label: String)] {
@@ -145,18 +165,18 @@ final class ArkModelStore: ObservableObject {
     func syncModelLibrary() async {
         guard !isSyncing else { return }
         isSyncing = true
-        status = .downloadingLibrary
+        syncProgress = 0
+        syncBytesReceived = 0
+        syncBytesExpected = 0
+        status = .preparingDownload
 
         do {
             try fileManager.createDirectory(at: appSupportRoot, withIntermediateDirectories: true)
             let archiveFile = appSupportRoot.appendingPathComponent("Ark-Models-main.zip")
-            let (temporaryFile, _) = try await URLSession.shared.download(from: archiveURL)
-            if fileManager.fileExists(atPath: archiveFile.path) {
-                try fileManager.removeItem(at: archiveFile)
-            }
-            try fileManager.moveItem(at: temporaryFile, to: archiveFile)
+            try await downloadArchive(to: archiveFile)
 
             status = .unpackingLibrary
+            syncProgress = max(syncProgress ?? 0, 0.86)
             let unpackRoot = appSupportRoot.appendingPathComponent("_unpack", isDirectory: true)
             if fileManager.fileExists(atPath: unpackRoot.path) {
                 try fileManager.removeItem(at: unpackRoot)
@@ -164,20 +184,91 @@ final class ArkModelStore: ObservableObject {
             try fileManager.createDirectory(at: unpackRoot, withIntermediateDirectories: true)
             try unzip(archiveFile, to: unpackRoot)
 
+            status = .installingLibrary
+            syncProgress = 0.92
             let sourceRoot = unpackRoot.appendingPathComponent("Ark-Models-main", isDirectory: true)
             try copyIfPresent("models_data.json", from: sourceRoot, to: appSupportRoot)
+            syncProgress = 0.94
             try copyIfPresent("models", from: sourceRoot, to: appSupportRoot)
+            syncProgress = 0.96
             try copyIfPresent("models_illust", from: sourceRoot, to: appSupportRoot)
+            syncProgress = 0.98
             try copyIfPresent("models_enemies", from: sourceRoot, to: appSupportRoot)
             try? fileManager.removeItem(at: unpackRoot)
 
             load()
+            syncProgress = 1
             status = .syncCompleted(count: models.count)
         } catch {
             status = .syncFailed(error.localizedDescription)
         }
 
         isSyncing = false
+        if case .syncFailed = status {
+            syncProgress = nil
+            syncBytesReceived = 0
+            syncBytesExpected = 0
+        } else {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 1_200_000_000)
+                if !self.isSyncing {
+                    self.syncProgress = nil
+                    self.syncBytesReceived = 0
+                    self.syncBytesExpected = 0
+                }
+            }
+        }
+    }
+
+    private func downloadArchive(to destination: URL) async throws {
+        status = .downloadingLibrary
+        syncProgress = 0.02
+
+        let delegate = ArchiveDownloadProgressDelegate { [weak self] received, expected in
+            Task { @MainActor in
+                self?.updateDownloadProgress(received: received, expected: expected)
+            }
+        }
+        let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
+        defer { session.invalidateAndCancel() }
+
+        let (temporaryFile, response) = try await session.download(from: archiveURL)
+        updateDownloadProgress(
+            received: fileSize(of: temporaryFile) ?? response.expectedContentLength,
+            expected: response.expectedContentLength
+        )
+
+        if fileManager.fileExists(atPath: destination.path) {
+            try fileManager.removeItem(at: destination)
+        }
+
+        try fileManager.moveItem(at: temporaryFile, to: destination)
+        syncProgress = 0.84
+    }
+
+    private func updateDownloadProgress(received: Int64, expected: Int64) {
+        let received = max(received, 0)
+        let expected = max(expected, 0)
+        syncBytesReceived = received
+        syncBytesExpected = expected
+
+        let downloadFraction: Double
+        if expected > 0 {
+            downloadFraction = min(max(Double(received) / Double(expected), 0), 1)
+        } else {
+            let receivedMB = max(Double(received) / 1_048_576, 0)
+            downloadFraction = min(log2(receivedMB + 1) / 9, 0.98)
+        }
+
+        let nextProgress = 0.02 + downloadFraction * 0.82
+        syncProgress = max(syncProgress ?? 0, min(nextProgress, 0.84))
+    }
+
+    private func fileSize(of url: URL) -> Int64? {
+        guard let size = try? fileManager.attributesOfItem(atPath: url.path)[.size] as? NSNumber else {
+            return nil
+        }
+        return size.int64Value
     }
 
     private func loadFromBestDataset() throws -> [ArkModelItem] {
@@ -389,5 +480,30 @@ private extension Optional {
     func unwrap() throws -> Wrapped {
         guard let self else { throw CocoaError(.fileNoSuchFile) }
         return self
+    }
+}
+
+private final class ArchiveDownloadProgressDelegate: NSObject, URLSessionDownloadDelegate {
+    private let onProgress: @Sendable (Int64, Int64) -> Void
+
+    init(onProgress: @escaping @Sendable (Int64, Int64) -> Void) {
+        self.onProgress = onProgress
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didFinishDownloadingTo location: URL
+    ) {
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        onProgress(totalBytesWritten, totalBytesExpectedToWrite)
     }
 }

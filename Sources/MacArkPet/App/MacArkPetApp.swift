@@ -1,5 +1,6 @@
 import AppKit
 
+@MainActor
 final class MacArkPetApp: NSObject, NSApplicationDelegate {
     private let model = PetModel()
     private let store = ArkModelStore()
@@ -32,8 +33,10 @@ final class MacArkPetApp: NSObject, NSApplicationDelegate {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.launcherController?.updateTitle()
-            self?.refreshMenus()
+            Task { @MainActor in
+                self?.launcherController?.updateTitle()
+                self?.refreshMenus()
+            }
         }
     }
 
