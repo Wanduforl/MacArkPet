@@ -225,9 +225,7 @@ final class ArkModelStore: ObservableObject {
         syncProgress = 0.02
 
         let delegate = ArchiveDownloadProgressDelegate { [weak self] received, expected in
-            Task { @MainActor in
-                self?.updateDownloadProgress(received: received, expected: expected)
-            }
+            self?.updateDownloadProgress(received: received, expected: expected)
         }
         let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
         defer { session.invalidateAndCancel() }
@@ -483,10 +481,10 @@ private extension Optional {
     }
 }
 
-private final class ArchiveDownloadProgressDelegate: NSObject, URLSessionDownloadDelegate {
-    private let onProgress: @Sendable (Int64, Int64) -> Void
+private final class ArchiveDownloadProgressDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    private let onProgress: @MainActor @Sendable (Int64, Int64) -> Void
 
-    init(onProgress: @escaping @Sendable (Int64, Int64) -> Void) {
+    init(onProgress: @escaping @MainActor @Sendable (Int64, Int64) -> Void) {
         self.onProgress = onProgress
     }
 
@@ -504,6 +502,8 @@ private final class ArchiveDownloadProgressDelegate: NSObject, URLSessionDownloa
         totalBytesWritten: Int64,
         totalBytesExpectedToWrite: Int64
     ) {
-        onProgress(totalBytesWritten, totalBytesExpectedToWrite)
+        Task { @MainActor [onProgress] in
+            onProgress(totalBytesWritten, totalBytesExpectedToWrite)
+        }
     }
 }

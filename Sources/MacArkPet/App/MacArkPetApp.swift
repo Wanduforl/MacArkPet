@@ -33,7 +33,7 @@ final class MacArkPetApp: NSObject, NSApplicationDelegate {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in
+            MainActor.assumeIsolated {
                 self?.launcherController?.updateTitle()
                 self?.refreshMenus()
             }
