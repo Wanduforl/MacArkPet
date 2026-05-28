@@ -59,6 +59,11 @@ open /Applications/MacArkPet.app
 MacArkPet does not include Arknights game assets or model files in the app
 bundle. Models are downloaded separately at runtime.
 
+Downloaded model resources are not owned by MacArkPet. The upstream Ark-Models
+README states that those materials belong to Shanghai Hypergryph Network
+Technology Co., Ltd. and must not be used commercially or in a way that harms
+the rights holder's interests.
+
 1. Open `MacArkPet`.
 2. In the launcher window, click `Sync Models`.
 3. Wait for the sync to finish.

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 MacArkPet contributors
 set -euo pipefail
 
 APP_NAME="MacArkPet"
@@ -26,7 +28,7 @@ BUILD_BINARY="$(swift build -c release --show-bin-path)/$APP_NAME"
 cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
 cp -R "$ROOT_DIR/Resources/." "$APP_RESOURCES/"
-cp "$ROOT_DIR/LICENSE" "$ROOT_DIR/NOTICE.md" "$APP_RESOURCES/"
+cp "$ROOT_DIR/LICENSE" "$ROOT_DIR/NOTICE.md" "$ROOT_DIR/THIRD_PARTY_NOTICES.md" "$APP_RESOURCES/"
 
 cat >"$INFO_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

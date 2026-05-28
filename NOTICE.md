@@ -14,6 +14,10 @@ The upstream Ark-Pets project is licensed under GPL-3.0. MacArkPet preserves
 the original project attribution and is released under the same GNU GPL v3.0
 license.
 
+MacArkPet source code was modified for a native macOS Swift/AppKit/SwiftUI
+runtime. The upstream Ark-Pets maintainers are not responsible for this macOS
+version.
+
 ## Assets
 
 This repository does not include Arknights game assets, character models, atlas
@@ -23,6 +27,9 @@ holder's terms.
 
 The in-app sync feature can download model metadata and resources from the
 community Ark-Models project. Those resources are not owned by this project.
+The Ark-Models README states that the materials in that repository belong to
+Shanghai Hypergryph Network Technology Co., Ltd. and must not be used
+commercially or in a way that harms the rights holder's interests.
 
 ## Third-Party Runtime
 

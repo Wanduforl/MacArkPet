@@ -34,15 +34,20 @@ released under the same GNU GPL v3.0 license.
 This repository does not include Arknights game assets or model packages.
 
 MacArkPet can download community model resources at runtime, but those resources
-are not owned by this project. If you publish forks, builds, or releases, do not
-bundle copyrighted game assets unless you have permission.
+are not owned by this project. The Ark-Models README states that those materials
+belong to Shanghai Hypergryph Network Technology Co., Ltd. and must not be used
+commercially or in a way that harms the rights holder's interests.
+
+If you publish forks, builds, or releases, do not bundle downloaded game/model
+assets unless you have permission from the relevant rights holders.
 
 MacArkPet is an unofficial fan-made project. It is not affiliated with,
 endorsed by, or maintained by Hypergryph, Yostar, the Ark-Pets maintainers, or
 the Ark-Models maintainers.
 
 Spine runtime code is included under its own license. See
-`Resources/spine-ts-LICENSE` and `NOTICE.md`.
+`Resources/spine-ts-LICENSE`, `NOTICE.md`, `THIRD_PARTY_NOTICES.md`, and
+`docs/LEGAL.md`.
 
 ## Requirements
 
@@ -128,6 +133,7 @@ git push origin main --tags
 Sources/MacArkPet/     Swift app source
 Resources/             App icon and Spine runtime
 script/                Build and release scripts
+docs/                  Usage and legal/distribution notes
 ```
 
 ## License
@@ -138,3 +144,6 @@ See [LICENSE](LICENSE).
 Third-party runtime code and model resources remain under their respective
 licenses and terms. This repository does not grant rights to Arknights game
 assets or community model resources downloaded at runtime.
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and
+[docs/LEGAL.md](docs/LEGAL.md) before redistributing builds.
