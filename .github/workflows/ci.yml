@@ -1,0 +1,17 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: swift build

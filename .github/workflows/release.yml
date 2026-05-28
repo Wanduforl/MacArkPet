@@ -1,0 +1,27 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: macos-14
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Package app
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}" ./script/package_release.sh
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*.zip
+          generate_release_notes: true

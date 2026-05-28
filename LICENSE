@@ -1,0 +1,42 @@
+MacArkPet Non-Commercial License
+
+Copyright (c) 2026 MacArkPet contributors
+
+Permission is granted, free of charge, to any person obtaining a copy of this
+software and associated documentation files (the "Software"), to use, copy,
+study, modify, and distribute the Software for non-commercial purposes only,
+subject to the following conditions:
+
+1. Commercial use is prohibited.
+
+   You may not sell, rent, sublicense for a fee, host for paid access, bundle
+   with commercial software, use for advertising monetization, or otherwise use
+   the Software or modified versions of the Software for commercial advantage or
+   monetary compensation.
+
+2. Notices must be preserved.
+
+   Copies or substantial portions of the Software must include this license,
+   the copyright notice above, and the project notices where reasonably
+   practical.
+
+3. Third-party materials are separate.
+
+   This license applies only to the MacArkPet application source code written
+   by the MacArkPet contributors. Third-party runtime code, model metadata,
+   character assets, game assets, and user-downloaded resources remain under
+   their respective licenses, terms, and rights holders.
+
+4. No official affiliation.
+
+   MacArkPet is an unofficial fan-made project and is not affiliated with,
+   endorsed by, or maintained by Hypergryph, Yostar, Esoteric Software, the
+   Ark-Pets maintainers, or the Ark-Models maintainers.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NONINFRINGEMENT. IN NO EVENT SHALL
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
