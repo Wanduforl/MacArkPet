@@ -4,6 +4,8 @@ MacArkPet is an unofficial native macOS desktop pet app for browsing and running
 Ark-style Spine models as small interactive desktop characters.
 
 It is inspired by Ark-Pets, but the macOS runtime is native Swift/AppKit/SwiftUI.
+This repository is released under GNU GPL v3.0 to preserve license
+compatibility with the upstream Ark-Pets project.
 
 ## Project Statement
 
@@ -13,10 +15,9 @@ experience and model ecosystem. This macOS version exists so more Arknights
 fans who only have a Mac, and do not have a Windows machine, can also enjoy a
 small operator desktop pet.
 
-This project is for learning, community sharing, and non-commercial personal
-use only. Commercial use is prohibited. Do not sell, paywall, monetize with
-ads, bundle with commercial software, or otherwise commercially use this
-project, packaged builds, model resources, or modified versions of this project.
+The upstream Ark-Pets project is licensed under GPL-3.0. In accordance with
+that license, MacArkPet preserves the original project attribution and is
+released under the same GNU GPL v3.0 license.
 
 ## Features
 
@@ -131,6 +132,9 @@ script/                Build and release scripts
 
 ## License
 
-MacArkPet source code is released under the MacArkPet Non-Commercial License.
-It is source-available for non-commercial use only. Third-party runtime code and
-model resources remain under their respective licenses and terms.
+MacArkPet source code is released under the GNU General Public License v3.0.
+See [LICENSE](LICENSE).
+
+Third-party runtime code and model resources remain under their respective
+licenses and terms. This repository does not grant rights to Arknights game
+assets or community model resources downloaded at runtime.

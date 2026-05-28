@@ -10,10 +10,9 @@ experience and model ecosystem. This macOS version exists so more Arknights
 fans who only have a Mac, and do not have a Windows machine, can also enjoy a
 desktop pet.
 
-This project is for learning, community sharing, and non-commercial personal
-use only. Commercial use is prohibited. Do not sell, paywall, monetize with
-ads, bundle with commercial software, or otherwise commercially use this
-project, packaged builds, model resources, or modified versions of this project.
+The upstream Ark-Pets project is licensed under GPL-3.0. MacArkPet preserves
+the original project attribution and is released under the same GNU GPL v3.0
+license.
 
 ## Assets
 
