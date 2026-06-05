@@ -17,6 +17,8 @@ final class PetWindowController {
     private var autoScaleFactor: CGFloat = 1
     private var targetStandingHeight: CGFloat = 180
     private var normalizationAttempts = 0
+    private var pendingShrinkResize: DispatchWorkItem?
+    private var appliedVisualAnchorX: CGFloat?
 
     init(model: PetModel) {
         self.model = model
@@ -47,6 +49,14 @@ final class PetWindowController {
             .store(in: &cancellables)
 
         model.$visualCropRect
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.resizeForCurrentModel(preserveBottom: true)
+            }
+            .store(in: &cancellables)
+
+        model.$mood
             .dropFirst()
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
@@ -92,9 +102,11 @@ final class PetWindowController {
         physics.horizontalSpeed = speed
         model.apply(model: item)
         model.renderScaleControlsWindow = true
-        model.visualCropRect = nil
-        model.visualCropKind = nil
+        model.resetVisualCrop()
         appliedContactInset = 0
+        appliedVisualAnchorX = nil
+        pendingShrinkResize?.cancel()
+        pendingShrinkResize = nil
         requestedRenderScale = renderScale
         autoScaleFactor = 1
         normalizationAttempts = 0
@@ -110,10 +122,12 @@ final class PetWindowController {
         requestedRenderScale = renderScale
         normalizationAttempts = 3
         model.renderScale = effectiveRenderScale
-        model.visualCropRect = nil
-        model.visualCropKind = nil
+        model.resetVisualCrop()
         appliedContactInset = 0
-        resizeForCurrentModel(preserveBottom: true)
+        appliedVisualAnchorX = nil
+        pendingShrinkResize?.cancel()
+        pendingShrinkResize = nil
+        resizeForCurrentModel(preserveBottom: true, allowDelayedShrink: false)
     }
 
     private func startLoop() {
@@ -128,7 +142,7 @@ final class PetWindowController {
         source.resume()
     }
 
-    private func resizeForCurrentModel(preserveBottom: Bool) {
+    private func resizeForCurrentModel(preserveBottom: Bool, allowDelayedShrink: Bool = true) {
         if normalizeStandingSizeIfNeeded() {
             return
         }
@@ -137,26 +151,92 @@ final class PetWindowController {
             hasSpineAssets: model.hasSpineAssets,
             renderScale: model.renderScale,
             visualAspectRatio: model.visualAspectRatio,
-            visualCropRect: model.visualCropRect
+            visualCropRect: model.activeVisualCropRect
         )
         let newContactInset = model.contactInset(forWindowSize: size)
-        guard window.frame.size != size || abs(appliedContactInset - newContactInset) > 0.5 else { return }
+        let sizeChanged = window.frame.size != size
+        let contactInsetChanged = abs(appliedContactInset - newContactInset) > 0.5
+        guard sizeChanged || contactInsetChanged else { return }
+
+        if !sizeChanged {
+            appliedContactInset = newContactInset
+            appliedVisualAnchorX = model.activeVisualAnchorX ?? window.frame.width / 2
+            physics.resetOrigin(window.frame.origin, clearSupport: false)
+            return
+        }
 
         let oldFrame = window.frame
+        if allowDelayedShrink, shouldDelayShrink(from: oldFrame.size, to: size) {
+            let transitionSize = NSSize(
+                width: max(oldFrame.width, size.width),
+                height: max(oldFrame.height, size.height)
+            )
+            if transitionSize.width > oldFrame.width + 0.5 || transitionSize.height > oldFrame.height + 0.5 {
+                applyResize(
+                    size: transitionSize,
+                    contactInset: model.contactInset(forWindowSize: transitionSize),
+                    preserveBottom: preserveBottom
+                )
+            }
+            scheduleDelayedShrinkResize(preserveBottom: preserveBottom)
+            return
+        }
+
+        pendingShrinkResize?.cancel()
+        pendingShrinkResize = nil
+        applyResize(size: size, contactInset: newContactInset, preserveBottom: preserveBottom)
+    }
+
+    private func applyResize(size: NSSize, contactInset newContactInset: CGFloat, preserveBottom: Bool) {
+        let oldFrame = window.frame
+        let oldAnchorX = oldFrame.minX + (appliedVisualAnchorX ?? oldFrame.width / 2)
+        let newAnchorX = model.activeVisualAnchorX ?? size.width / 2
         let origin: NSPoint
         if preserveBottom {
             let contactY = oldFrame.minY + appliedContactInset
             origin = NSPoint(
-                x: oldFrame.midX - size.width / 2,
+                x: oldAnchorX - newAnchorX,
                 y: contactY - newContactInset
             )
         } else {
-            origin = oldFrame.origin
+            origin = NSPoint(x: oldAnchorX - newAnchorX, y: oldFrame.minY)
         }
 
         window.setFrame(NSRect(origin: origin, size: size), display: true)
         appliedContactInset = newContactInset
+        appliedVisualAnchorX = newAnchorX
         physics.resetOrigin(origin, clearSupport: false)
+    }
+
+    private func shouldDelayShrink(from oldSize: NSSize, to newSize: NSSize) -> Bool {
+        guard model.hasSpineAssets,
+              model.activeVisualCropRect != nil else {
+            return false
+        }
+        if Date() < model.resumeWalkingAt {
+            return false
+        }
+
+        let widthIsShrinking = newSize.width < oldSize.width - 2
+        let heightIsShrinking = newSize.height < oldSize.height - 2
+        guard widthIsShrinking || heightIsShrinking else {
+            return false
+        }
+
+        let oldArea = max(oldSize.width * oldSize.height, 1)
+        let newArea = max(newSize.width * newSize.height, 1)
+        let widthRatio = newSize.width / max(oldSize.width, 1)
+        let heightRatio = newSize.height / max(oldSize.height, 1)
+        return widthRatio < 0.92 || heightRatio < 0.92 || newArea / oldArea < 0.86
+    }
+
+    private func scheduleDelayedShrinkResize(preserveBottom: Bool) {
+        pendingShrinkResize?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.resizeForCurrentModel(preserveBottom: preserveBottom, allowDelayedShrink: false)
+        }
+        pendingShrinkResize = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.65, execute: workItem)
     }
 
     private var effectiveRenderScale: CGFloat {
@@ -194,9 +274,9 @@ final class PetWindowController {
         autoScaleFactor = nextFactor
         normalizationAttempts += 1
         model.renderScale = nextRenderScale
-        model.visualCropRect = nil
-        model.visualCropKind = nil
+        model.resetVisualCrop()
         appliedContactInset = 0
+        appliedVisualAnchorX = nil
         resizeForCurrentModel(preserveBottom: true)
         return true
     }

@@ -33,7 +33,9 @@ final class PetModel: ObservableObject {
     var nextMoodChange = Date().addingTimeInterval(8)
     var lastTick = Date()
     var lastDragEventAt = Date.distantPast
+    var resumeWalkingAt = Date.distantPast
     private var lastPokeAt = Date.distantPast
+    private var visualCropRectsByKind: [String: CGRect] = [:]
 
     var hasSpineAssets: Bool {
         atlasURL != nil && skeletonURL != nil && imageURL != nil
@@ -67,15 +69,16 @@ final class PetModel: ObservableObject {
     }
 
     func finishOneShotAction(kind: String) {
-        if kind == "interact", mood == .happy {
-            mood = .idle
-        } else if kind == "special", mood == .special {
-            mood = .idle
-        } else {
+        let shouldFinish = (kind == "interact" && mood == .happy)
+            || (kind == "special" && mood == .special)
+        guard shouldFinish else {
             return
         }
+
         velocity = CGVector(dx: 0, dy: 0)
+        resumeWalkingAt = Date().addingTimeInterval(2.0)
         nextMoodChange = Date().addingTimeInterval(TimeInterval.random(in: 8...14))
+        mood = .idle
     }
 
     func animationKind() -> String {
@@ -94,18 +97,18 @@ final class PetModel: ObservableObject {
     }
 
     func contactInset(forWindowSize size: CGSize) -> CGFloat {
-        guard hasSpineAssets, visualCropKind == animationKind() else { return 0 }
+        guard hasSpineAssets else { return 0 }
 
         switch animationKind() {
         case "rest":
-            return min(max(size.height * 0.30, 24), 76)
+            return min(max(size.height * 0.18, 14), 46)
         case "sleep":
-            if size.width > size.height * 1.2 {
-                return min(max(size.height * 0.04, 0), 12)
+            if size.width > size.height * 1.25 {
+                return min(max(size.height * 0.035, 3), 12)
             }
-            return min(max(size.height * 0.28, 22), 70)
+            return min(max(size.height * 0.16, 12), 42)
         default:
-            return 0
+            return min(max(size.height * 0.015, 2), 6)
         }
     }
 
@@ -120,6 +123,7 @@ final class PetModel: ObservableObject {
     func resetMotion() {
         isDragging = false
         velocity = CGVector(dx: 42, dy: 0)
+        resumeWalkingAt = .distantPast
         facingLeft = false
         mood = .idle
         nextMoodChange = Date().addingTimeInterval(TimeInterval.random(in: 10...18))
@@ -132,8 +136,100 @@ final class PetModel: ObservableObject {
         skeletonURL = model.skeletonURL
         renderScaleControlsWindow = false
         visualAspectRatio = nil
+        resetVisualCrop()
+        resetMotion()
+    }
+
+    var activeVisualCropRect: CGRect? {
+        guard hasSpineAssets else { return nil }
+        let kind = animationKind()
+        if isStandingKind(kind) {
+            return standingVisualCropRect
+        }
+        if let crop = visualCropRectsByKind[kind] {
+            if isOneShotKind(kind), let standingCrop = standingVisualCropRect {
+                return crop.union(standingCrop)
+            }
+            return crop
+        }
+        return standingVisualCropRect
+    }
+
+    var activeVisualAnchorX: CGFloat? {
+        guard hasSpineAssets,
+              let activeCrop = activeVisualCropRect else {
+            return nil
+        }
+
+        let anchorCrop = standingVisualCropRect ?? activeCrop
+        let anchorX = anchorCrop.midX - activeCrop.minX
+        return min(max(anchorX, 0), activeCrop.width)
+    }
+
+    func setVisualCrop(kind: String, rect: CGRect) {
+        let safeRect = safeVisualCropRect(rect, kind: kind)
+        let stableRect = visualCropRectsByKind[kind]?.union(safeRect) ?? safeRect
+        visualCropRectsByKind[kind] = stableRect
+        visualCropKind = kind
+        visualCropRect = stableRect
+    }
+
+    func resetVisualCrop() {
+        visualCropRectsByKind.removeAll()
         visualCropRect = nil
         visualCropKind = nil
-        resetMotion()
+    }
+
+    private var standingVisualCropRect: CGRect? {
+        let standingRects = ["move", "idle"].compactMap { visualCropRectsByKind[$0] }
+        return union(standingRects)
+    }
+
+    private func isStandingKind(_ kind: String) -> Bool {
+        kind == "move" || kind == "idle"
+    }
+
+    private func isOneShotKind(_ kind: String) -> Bool {
+        kind == "interact" || kind == "special"
+    }
+
+    private func union(_ rects: [CGRect]) -> CGRect? {
+        guard var result = rects.first else { return nil }
+        for rect in rects.dropFirst() {
+            result = result.union(rect)
+        }
+        return result
+    }
+
+    private func safeVisualCropRect(_ rect: CGRect, kind: String) -> CGRect {
+        let topPadding: CGFloat
+        let sidePadding: CGFloat
+        let bottomPadding: CGFloat
+
+        switch kind {
+        case "move", "idle":
+            topPadding = max(18, rect.height * 0.08)
+            sidePadding = max(8, rect.width * 0.025)
+            bottomPadding = max(3, rect.height * 0.015)
+        case "rest", "sleep":
+            topPadding = max(12, rect.height * 0.045)
+            sidePadding = max(10, rect.width * 0.025)
+            bottomPadding = max(3, rect.height * 0.015)
+        default:
+            topPadding = max(14, rect.height * 0.06)
+            sidePadding = max(8, rect.width * 0.025)
+            bottomPadding = max(3, rect.height * 0.015)
+        }
+
+        let left = max(0, rect.minX - sidePadding)
+        let top = max(0, rect.minY - topPadding)
+        let right = rect.maxX + sidePadding
+        let bottom = rect.maxY + bottomPadding
+        return CGRect(
+            x: left.rounded(.down),
+            y: top.rounded(.down),
+            width: max(1, (right - left).rounded(.up)),
+            height: max(1, (bottom - top).rounded(.up))
+        )
     }
 }

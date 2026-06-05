@@ -12,7 +12,7 @@ struct PetView: View {
             hasSpineAssets: model.hasSpineAssets,
             renderScale: model.renderScale,
             visualAspectRatio: model.visualAspectRatio,
-            visualCropRect: model.visualCropRect
+            visualCropRect: model.activeVisualCropRect
         )
         let stageSize = PetWindowMetrics.stageSize(
             hasSpineAssets: model.hasSpineAssets,
@@ -20,7 +20,7 @@ struct PetView: View {
             visualAspectRatio: model.visualAspectRatio
         )
         let canvasSize = CGSize(width: windowSize.width, height: windowSize.height)
-        let cropRect = model.hasSpineAssets ? model.visualCropRect : nil
+        let cropRect = model.hasSpineAssets ? model.activeVisualCropRect : nil
 
         ZStack {
             if !model.hasSpineAssets {
@@ -58,8 +58,8 @@ struct PetView: View {
             }
         }
         .scaleEffect(x: model.hasSpineAssets ? 1 : (model.facingLeft ? -1 : 1), y: 1)
-        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: model.mood)
-        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: model.facingLeft)
+        .animation(model.hasSpineAssets ? nil : .spring(response: 0.25, dampingFraction: 0.7), value: model.mood)
+        .animation(model.hasSpineAssets ? nil : .spring(response: 0.25, dampingFraction: 0.7), value: model.facingLeft)
         .frame(width: canvasSize.width, height: canvasSize.height)
         .contentShape(Rectangle())
     }

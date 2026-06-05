@@ -268,6 +268,12 @@ struct SpineRendererDocument {
               lastPixelBoundsKey = "";
             }
 
+            function pixelBoundsSampleTarget() {
+              if (currentKind === "sleep" || currentKind === "rest") return 34;
+              if (currentKind === "special" || currentKind === "interact") return 24;
+              return 14;
+            }
+
             function padBounds(source) {
               const width = Math.max(1, source.maxX - source.minX);
               const height = Math.max(1, source.maxY - source.minY);
@@ -334,19 +340,27 @@ struct SpineRendererDocument {
             function chooseAnimation(kind) {
               if (animationNames.length === 0) return null;
               const lower = animationNames.map((name) => name.toLowerCase());
+              const findPreferred = function(tokens) {
+                for (const wanted of tokens) {
+                  const exact = lower.indexOf(wanted);
+                  if (exact >= 0) return animationNames[exact];
+                  const partial = lower.findIndex((name) => name.includes(wanted));
+                  if (partial >= 0) return animationNames[partial];
+                }
+                return null;
+              };
               const groups = {
                 sleep: ["sleep", "sit", "relax", "idle", "default"],
                 rest: ["sit", "relax", "idle", "default"],
-                special: ["special", "interact", "relax", "idle", "default"],
-                interact: ["interact", "special", "relax", "idle", "default"],
+                special: ["special", "skill", "attack", "interact", "relax", "idle", "default"],
+                interact: ["interact", "touch", "special", "skill", "relax", "idle", "default"],
                 move: ["move", "walk", "run", "default", "relax", "idle"],
                 idle: ["relax", "idle", "default", "move"]
               };
-              for (const wanted of (groups[kind] || groups.idle)) {
-                const exact = lower.indexOf(wanted);
-                if (exact >= 0) return animationNames[exact];
-                const partial = lower.findIndex((name) => name.includes(wanted));
-                if (partial >= 0) return animationNames[partial];
+              const preferred = findPreferred(groups[kind] || groups.idle);
+              if (preferred) return preferred;
+              if (kind === "special" || kind === "interact" || kind === "rest" || kind === "sleep") {
+                return null;
               }
               return animationNames[0];
             }
@@ -360,7 +374,7 @@ struct SpineRendererDocument {
               currentKind = nextKind;
               currentAnimation = next;
               oneShotCompletionSent = false;
-              resetPixelBoundsTracking(18);
+              resetPixelBoundsTracking(nextKind === "sleep" || nextKind === "rest" ? 28 : 18);
               animationState.setAnimation(0, next, !isOneShot);
             };
 
@@ -539,9 +553,10 @@ struct SpineRendererDocument {
               if (maxX < minX || maxY < minY) return;
 
               const ratio = window.devicePixelRatio || 1;
-              const sideMargin = Math.max(2, 2 * ratio);
-              const topMargin = Math.max(2, 2 * ratio);
-              const bottomMargin = 0;
+              const relaxedPose = currentKind === "sleep" || currentKind === "rest";
+              const sideMargin = Math.max(relaxedPose ? 10 : 4, (relaxedPose ? 10 : 4) * ratio);
+              const topMargin = Math.max(relaxedPose ? 18 : 8, (relaxedPose ? 18 : 8) * ratio);
+              const bottomMargin = Math.max(1, ratio);
               minX = Math.max(0, minX - sideMargin);
               minY = Math.max(0, minY - bottomMargin);
               maxX = Math.min(width - 1, maxX + sideMargin);
@@ -555,7 +570,7 @@ struct SpineRendererDocument {
               };
               accumulatedPixelBounds = unionPixelBounds(accumulatedPixelBounds, currentBounds);
               pixelBoundsSamples += 1;
-              if (pixelBoundsSamples < 14) return;
+              if (pixelBoundsSamples < pixelBoundsSampleTarget()) return;
 
               const stableBounds = snapPixelBounds(accumulatedPixelBounds);
               const key = [

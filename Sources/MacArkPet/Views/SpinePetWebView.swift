@@ -142,8 +142,7 @@ struct SpinePetWebView: NSViewRepresentable {
                 DispatchQueue.main.async { [weak self] in
                     guard let model = self?.currentModel else { return }
                     guard kind == model.animationKind() else { return }
-                    model.visualCropKind = kind
-                    model.visualCropRect = CGRect(x: left, y: top, width: width, height: height)
+                    model.setVisualCrop(kind: kind, rect: CGRect(x: left, y: top, width: width, height: height))
                 }
             } else if type == "animationComplete" {
                 guard let kind = body["kind"] as? String else { return }

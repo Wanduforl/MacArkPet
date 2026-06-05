@@ -10,6 +10,8 @@ struct PetPhysics {
     var horizontalSpeed: CGFloat = 42
     private var preciseOrigin: CGPoint?
     private var currentSupport: Surface?
+    private var stationaryLockMood: PetModel.Mood?
+    private var stationaryLockX: CGFloat?
 
     private struct Surface {
         enum Kind: Int {
@@ -32,6 +34,9 @@ struct PetPhysics {
 
     mutating func resetOrigin(_ origin: CGPoint, clearSupport: Bool = true) {
         preciseOrigin = origin
+        if stationaryLockMood != nil {
+            stationaryLockX = origin.x
+        }
         if clearSupport {
             currentSupport = nil
         }
@@ -65,6 +70,18 @@ struct PetPhysics {
             || model.mood == .resting
             || model.mood == .special
             || model.mood == .happy
+        let shouldLockHorizontal = isStationaryMood || now < model.resumeWalkingAt
+        if shouldLockHorizontal {
+            if stationaryLockMood != model.mood {
+                stationaryLockMood = model.mood
+                stationaryLockX = frame.origin.x
+            }
+            frame.origin.x = stationaryLockX ?? frame.origin.x
+            model.velocity.dx = 0
+        } else {
+            stationaryLockMood = nil
+            stationaryLockX = nil
+        }
 
         if abs(model.velocity.dy) < 1, let support = currentSupport {
             if let updatedSupport = updatedSurface(
@@ -79,6 +96,9 @@ struct PetPhysics {
                 var shiftedFrame = frame
                 shiftedFrame.origin.x += supportDeltaX
                 shiftedFrame.origin.y += supportDeltaY
+                if shouldLockHorizontal, let lockedX = stationaryLockX {
+                    stationaryLockX = lockedX + supportDeltaX
+                }
                 if abs(supportDeltaX) < 96,
                    abs(supportDeltaY) < 96,
                    supportsFeet(of: shiftedFrame, contactInset: contactInset, on: updatedSupport, screen: screen) {
@@ -93,25 +113,33 @@ struct PetPhysics {
             }
         }
 
-        if isStationaryMood {
-            model.velocity.dx *= 0.86
-            if abs(model.velocity.dx) < 1 {
-                model.velocity.dx = 0
-            }
-        } else if abs(model.velocity.dx) < horizontalSpeed * 0.35 {
+        if shouldLockHorizontal {
+            model.velocity.dx = 0
+            frame.origin.x = stationaryLockX ?? frame.origin.x
+        } else if now >= model.resumeWalkingAt, abs(model.velocity.dx) < horizontalSpeed * 0.35 {
             model.velocity.dx = model.facingLeft ? -horizontalSpeed : horizontalSpeed
         }
 
         if frame.minX <= bounds.minX + edgeInset {
             frame.origin.x = bounds.minX + edgeInset
-            model.velocity.dx = isStationaryMood ? 0 : abs(horizontalSpeed)
+            if shouldLockHorizontal {
+                stationaryLockX = frame.origin.x
+            }
+            model.velocity.dx = shouldLockHorizontal ? 0 : abs(horizontalSpeed)
         } else if frame.maxX >= bounds.maxX - edgeInset {
             frame.origin.x = bounds.maxX - frame.width - edgeInset
-            model.velocity.dx = isStationaryMood ? 0 : -abs(horizontalSpeed)
+            if shouldLockHorizontal {
+                stationaryLockX = frame.origin.x
+            }
+            model.velocity.dx = shouldLockHorizontal ? 0 : -abs(horizontalSpeed)
         }
 
         model.velocity.dy -= gravity * CGFloat(dt)
-        frame.origin.x += model.velocity.dx * CGFloat(dt)
+        if shouldLockHorizontal {
+            frame.origin.x = stationaryLockX ?? frame.origin.x
+        } else {
+            frame.origin.x += model.velocity.dx * CGFloat(dt)
+        }
         frame.origin.y += model.velocity.dy * CGFloat(dt)
 
         let support = landingSurface(
@@ -123,11 +151,21 @@ struct PetPhysics {
         )
         let contactY = frame.minY + contactInset
         if model.velocity.dy <= 0, support.isFloor, contactY <= support.topY {
-            frame.origin.y = support.topY - contactInset
+            frame.origin.y = settledY(
+                currentY: frame.origin.y,
+                targetY: support.topY - contactInset,
+                wasSupported: currentSupport != nil,
+                dt: CGFloat(dt)
+            )
             model.velocity.dy = 0
             currentSupport = support
         } else if model.velocity.dy <= 0, contactY <= support.topY, previousContactY >= support.topY - 34 {
-            frame.origin.y = support.topY - contactInset
+            frame.origin.y = settledY(
+                currentY: frame.origin.y,
+                targetY: support.topY - contactInset,
+                wasSupported: currentSupport != nil,
+                dt: CGFloat(dt)
+            )
             model.velocity.dy = 0
             currentSupport = support
         } else if currentSupport?.isFloor == false, support.isFloor {
@@ -138,10 +176,16 @@ struct PetPhysics {
 
         if frame.minX <= bounds.minX + edgeInset {
             frame.origin.x = bounds.minX + edgeInset
-            model.velocity.dx = isStationaryMood ? 0 : abs(horizontalSpeed)
+            if shouldLockHorizontal {
+                stationaryLockX = frame.origin.x
+            }
+            model.velocity.dx = shouldLockHorizontal ? 0 : abs(horizontalSpeed)
         } else if frame.maxX >= bounds.maxX - edgeInset {
             frame.origin.x = bounds.maxX - frame.width - edgeInset
-            model.velocity.dx = isStationaryMood ? 0 : -abs(horizontalSpeed)
+            if shouldLockHorizontal {
+                stationaryLockX = frame.origin.x
+            }
+            model.velocity.dx = shouldLockHorizontal ? 0 : -abs(horizontalSpeed)
         }
 
         if abs(model.velocity.dx) > 1 {
@@ -156,13 +200,22 @@ struct PetPhysics {
         window.setFrameOrigin(frame.origin)
     }
 
+    private func settledY(currentY: CGFloat, targetY: CGFloat, wasSupported: Bool, dt: CGFloat) -> CGFloat {
+        let delta = targetY - currentY
+        guard wasSupported, abs(delta) > 0.5, abs(delta) < 90 else {
+            return targetY
+        }
+
+        let maxStep = max(4, 720 * dt)
+        return currentY + min(abs(delta), maxStep) * (delta < 0 ? -1 : 1)
+    }
+
     private func pickNextIdleAction(model: PetModel, onWindowSurface: Bool) {
         if model.mood != .idle {
-            model.mood = .idle
-            if abs(model.velocity.dx) < horizontalSpeed * 0.35 {
-                model.velocity.dx = model.facingLeft ? -horizontalSpeed : horizontalSpeed
-            }
+            model.resumeWalkingAt = Date().addingTimeInterval(1.6)
+            model.velocity.dx = 0
             model.nextMoodChange = Date().addingTimeInterval(TimeInterval.random(in: 8...14))
+            model.mood = .idle
             return
         }
 
