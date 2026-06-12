@@ -56,8 +56,10 @@ Spine runtime code is included under its own license. See
 
 ## Player Guide
 
-Download the app from GitHub Releases, unzip it, and move `MacArkPet.app` to
-`Applications`.
+Download the app from GitHub Releases. The recommended package is the
+`MacArkPet-<version>-macOS.dmg` file: open it, drag `MacArkPet.app` to
+`Applications`, then open the app from there. A zip package is also available
+as a fallback.
 
 If macOS says Apple cannot check the app for malicious software, see the
 English [User Guide](docs/USAGE.md). It also explains how to use `Sync Models`,
@@ -86,16 +88,17 @@ at local assets:
 ARK_PETS_ASSETS=/path/to/Ark-Pets/assets ./script/build_and_run.sh
 ```
 
-## Build A Release Zip
+## Build A Release Package
 
 ```bash
 ./script/package_release.sh
 ```
 
-The zip will be created under `release/`, for example:
+The zip and dmg will be created under `release/`, for example:
 
 ```text
 release/MacArkPet-0.1.0-macOS.zip
+release/MacArkPet-0.1.0-macOS.dmg
 ```
 
 By default the app is ad-hoc signed, not notarized. Players may need to right

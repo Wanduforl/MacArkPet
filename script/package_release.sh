@@ -18,6 +18,8 @@ APP_RESOURCES="$APP_CONTENTS/Resources"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 ZIP_PATH="$RELEASE_DIR/$APP_NAME-$VERSION-macOS.zip"
+DMG_ROOT="$RELEASE_DIR/dmg-root"
+DMG_PATH="$RELEASE_DIR/$APP_NAME-$VERSION-macOS.dmg"
 
 rm -rf "$RELEASE_DIR"
 mkdir -p "$APP_MACOS" "$APP_RESOURCES"
@@ -77,6 +79,22 @@ fi
 
 COPYFILE_DISABLE=1 /usr/bin/ditto -c -k --norsrc --keepParent "$APP_BUNDLE" "$ZIP_PATH"
 
+rm -rf "$DMG_ROOT"
+mkdir -p "$DMG_ROOT"
+COPYFILE_DISABLE=1 /usr/bin/ditto --norsrc "$APP_BUNDLE" "$DMG_ROOT/$APP_NAME.app"
+ln -s /Applications "$DMG_ROOT/Applications"
+if [ -x /usr/bin/xattr ]; then
+  /usr/bin/xattr -cr "$DMG_ROOT"
+fi
+/usr/bin/hdiutil create \
+  -volname "$APP_NAME $VERSION" \
+  -srcfolder "$DMG_ROOT" \
+  -fs HFS+ \
+  -ov \
+  -format UDZO \
+  "$DMG_PATH" >/dev/null
+rm -rf "$DMG_ROOT"
+
 if [ -x /usr/bin/xattr ]; then
   /usr/bin/xattr -cr "$APP_BUNDLE"
 fi
@@ -89,3 +107,4 @@ if [ -x /usr/bin/codesign ]; then
 fi
 
 echo "Packaged $ZIP_PATH"
+echo "Packaged $DMG_PATH"

@@ -6,10 +6,14 @@ Releases.
 ## Download And Install
 
 1. Open the latest MacArkPet release on GitHub.
-2. Download the latest `MacArkPet-<version>-macOS.zip` file.
-3. Unzip it.
-4. Move `MacArkPet.app` to your `Applications` folder.
-5. Double-click `MacArkPet.app`.
+2. Download the latest `MacArkPet-<version>-macOS.dmg` file.
+3. Open the DMG.
+4. Drag `MacArkPet.app` into the `Applications` shortcut.
+5. Eject the DMG and open `MacArkPet.app` from `Applications`.
+
+If the DMG does not work for your setup, you can also download the
+`MacArkPet-<version>-macOS.zip` file, unzip it, and move `MacArkPet.app` to
+your `Applications` folder manually.
 
 MacArkPet is currently ad-hoc signed and not notarized by Apple. This means
 macOS may block the first launch even when the file was downloaded correctly.
